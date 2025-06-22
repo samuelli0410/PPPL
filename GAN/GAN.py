@@ -341,7 +341,7 @@ def train_cgan(batch_size=16, percent=0.2, seed=42):
 
         scheduler_g.step(loss_g)
         scheduler_d.step(loss_d)
-        print(f"AVG Gen Loss:{loss_g_cumul/len(dataloader)} | AVG Disc Loss: {loss_d_cumul/len(dataloader)}")
+        print(f"{epoch} AVG Gen Loss:{loss_g_cumul/len(dataloader)} | AVG Disc Loss: {loss_d_cumul/len(dataloader)}")
 
     return generator
 

@@ -83,63 +83,63 @@ class SRCNN(nn.Module):
 
 
 #Resnet
-class Autoencoder(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.encoder = ResNetEncoder()
-        # self.SRCNN = SRCNN()
-        self.decoder = Decoder(in_channels=2048)
-        
-
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        # x = self.SRCNN(x)
-        return x
-
-
-#VAE
 # class Autoencoder(nn.Module):
 #     def __init__(self):
 #         super().__init__()
 #         self.encoder = ResNetEncoder()
+#         # self.SRCNN = SRCNN()
+#         self.decoder = Decoder(in_channels=2048)
         
-#         self.latent_dim = 2  
-#         self.encoder_output_shape = (2048, 8, 23)
-#         encoder_flat_dim = 2048 * 8 * 23
-        
-#         self.mean_layer = nn.Linear(encoder_flat_dim, self.latent_dim)
-#         self.logvar_layer = nn.Linear(encoder_flat_dim, self.latent_dim)
-
-#         self.decoder_input_channels = 512  
-#         self.decoder_h, self.decoder_w = 4, 4
-
-#         self.latent_to_decoder = nn.Linear(self.latent_dim, self.decoder_input_channels * self.decoder_h * self.decoder_w)
-        
-#         self.decoder = Decoder(in_channels=self.decoder_input_channels)
 
 #     def forward(self, x):
 #         x = self.encoder(x)
-#         # print("latent space dim")
-#         # print(x.shape)
-#         B = x.shape[0]
-#         x_flat = x.view(B, -1)
+#         x = self.decoder(x)
+#         # x = self.SRCNN(x)
+#         return x
 
-#         mean = self.mean_layer(x_flat)
-#         logvar = self.logvar_layer(x_flat)
-#         z = self.reparameterization(mean, logvar)
 
-#         z = self.latent_to_decoder(z)
-#         z = z.view(B, self.decoder_input_channels, self.decoder_h, self.decoder_w)
+#VAE
+class Autoencoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = ResNetEncoder()
+        
+        self.latent_dim = 2  
+        self.encoder_output_shape = (2048, 8, 23)
+        encoder_flat_dim = 2048 * 8 * 23
+        
+        self.mean_layer = nn.Linear(encoder_flat_dim, self.latent_dim)
+        self.logvar_layer = nn.Linear(encoder_flat_dim, self.latent_dim)
 
-#         x_recon = self.decoder(z)
-#         return x_recon
+        self.decoder_input_channels = 512  
+        self.decoder_h, self.decoder_w = 4, 4
 
-#     def reparameterization(self, mean, var):
-#         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         epsilon = torch.randn_like(var).to(device)      
-#         z = mean + var*epsilon
-#         return z
+        self.latent_to_decoder = nn.Linear(self.latent_dim, self.decoder_input_channels * self.decoder_h * self.decoder_w)
+        
+        self.decoder = Decoder(in_channels=self.decoder_input_channels)
+
+    def forward(self, x):
+        x = self.encoder(x)
+        # print("latent space dim")
+        # print(x.shape)
+        B = x.shape[0]
+        x_flat = x.view(B, -1)
+
+        mean = self.mean_layer(x_flat)
+        logvar = self.logvar_layer(x_flat)
+        z = self.reparameterization(mean, logvar)
+
+        z = self.latent_to_decoder(z)
+        z = z.view(B, self.decoder_input_channels, self.decoder_h, self.decoder_w)
+
+        x_recon = self.decoder(z)
+        return x_recon
+
+    def reparameterization(self, mean, var):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        epsilon = torch.randn_like(var).to(device)      
+        z = mean + var*epsilon
+        return z
 
 
 

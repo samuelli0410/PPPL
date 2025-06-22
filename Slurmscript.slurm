@@ -13,4 +13,4 @@ module purge
 module load anaconda3/2024.10   # Replace with your version
 conda activate base             # Or your conda environment name
 
-python /scratch/gpfs/sl4318/working_dir/VideoProcessing
+python /scratch/gpfs/sl4318/working_dir/GAN/GAN.py

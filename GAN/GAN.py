@@ -301,7 +301,7 @@ def train_cgan(batch_size=16, percent=0.2, seed=42):
 
     dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 
-    for epoch in range(50):
+    for epoch in range(30):
         loss_d_cumul = 0
         loss_g_cumul = 0
 

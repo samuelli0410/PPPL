@@ -15,7 +15,7 @@ sys.path.append(str(project_root))
 sav_files_dir = data_dir / "all"
 from data.file_utils import GetEmission
 from working_dir.ResNet.EncoderTrain import Autoencoder
-
+from working_dir.GAN.GAN import UNet
 # from working_dir.MLP.MLP import MLP
 
 
@@ -77,13 +77,13 @@ def generate_Videos(modelWeights, model, FileNumber = 0):
 
         count +=1
 
-    with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/MLP.mp4", fps=10) as writer:
+    with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/GAN.mp4", fps=10) as writer:
         for i in range(count):
             filename = f"frames/frame_{i:03d}.png"
             image = imageio.imread(filename)
             writer.append_data(image)
 
-    print("Video saved as MLP.mp4")
+    print("Video saved")
 
     
 
@@ -93,7 +93,7 @@ def generate_Videos(modelWeights, model, FileNumber = 0):
 
 if __name__ == "__main__":
     print("starting")
-    generate_Videos("/scratch/gpfs/sl4318/MLP.pth",MLP)
+    generate_Videos("/scratch/gpfs/sl4318/MLP.pth",UNet)
     # with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/ResNet.mp4", fps=10) as writer:
     #     for i in range(171):
     #         filename = f"frames/frame_{i:03d}.png"

@@ -54,8 +54,8 @@ def load_csv_data(file_index):
     return reconstructed
 
 # Example usage
-print("1")
-framesInverted = load_csv_data(0)
-print(len(framesInverted))                  # Number of frame pairs
-print(framesInverted[0][0].shape)           # Shape of first `vid` frame
-print(framesInverted[0][1].shape) 
+# print("1")
+# framesInverted = load_csv_data(0)
+# print(len(framesInverted))                  # Number of frame pairs
+# print(framesInverted[0][0].shape)           # Shape of first `vid` frame
+# print(framesInverted[0][1].shape) 

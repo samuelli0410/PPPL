@@ -330,9 +330,6 @@ def save_val_set(val_set, save_path="val_data.npz"):
 
 
 
-
-
-
 if __name__ == "__main__":
     # data = np.load("data.npz")
     # frames = data["X"]
@@ -355,7 +352,6 @@ if __name__ == "__main__":
 
     ######################Validation
 
-    model = Autoencoder()
     data = np.load("data.npz")
     frames = data["X"]
     inverted = data["y"]

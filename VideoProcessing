@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation 
 import os
-import imageio
+import imageio.v2 as imageio
 from tqdm import tqdm
 import torch
 csv.field_size_limit(sys.maxsize)
@@ -44,25 +44,23 @@ def generate_Videos(modelWeights, model = Autoencoder, FileNumber = 0):
             test_output = test_output.squeeze().cpu().numpy()
         
 
-        plt.subplot(1,3,2)
-        plt.title(f"Inverted {j}")
-        plt.imshow(ground_truth, cmap='inferno')
-        plt.colorbar()
+        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
+        # Cam image with aspect ratio preserved
+        axs[0].imshow(test_input, cmap='inferno', aspect='auto')
+        axs[0].set_title(f"Cam Image {j}")
+        fig.colorbar(axs[0].images[0], ax=axs[0])
 
-        plt.subplot(1,3,1)
-        plt.title(f"Cam Image {j}")
-        plt.imshow(test_input, cmap='inferno')
-        plt.colorbar()
+        # Ground truth and output as square
+        for i, img, title in zip([1, 2], [ground_truth, test_output], ["Inverted", "Generated Inversion"]):
+            axs[i].imshow(img, cmap='inferno', aspect='equal')
+            axs[i].set_title(title)
+            fig.colorbar(axs[i].images[0], ax=axs[i])
 
-
-        plt.subplot(1,3,3)
-        plt.title(f"Generated Inversion {j}")
-        plt.imshow(test_output, cmap='inferno')
-        plt.colorbar()
-
+        fig.tight_layout()
         plt.savefig(f"frames/frame_{count:03d}.png")
-        plt.close()
+        plt.close(fig)
+
 
 
 
@@ -86,3 +84,8 @@ def generate_Videos(modelWeights, model = Autoencoder, FileNumber = 0):
 
 if __name__ == "__main__":
     generate_Videos("/scratch/gpfs/sl4318/ResNetSRCNN.pth")
+    # with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/output_video.mp4", fps=10) as writer:
+    #     for i in range(171):
+    #         filename = f"frames/frame_{i:03d}.png"
+    #         image = imageio.imread(filename)
+    #         writer.append_data(image)

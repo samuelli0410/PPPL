@@ -83,23 +83,23 @@ class SRCNN(nn.Module):
 
 
 #Resnet
-# class Autoencoder(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.encoder = ResNetEncoder()
-#         # self.SRCNN = SRCNN()
-#         self.decoder = Decoder(in_channels=2048)
+class Autoencoder(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = ResNetEncoder()
+        self.decoder = Decoder(in_channels=2048)
+        # self.SRCNN = SRCNN()
         
 
-#     def forward(self, x):
-#         x = self.encoder(x)
-#         x = self.decoder(x)
-#         # x = self.SRCNN(x)
-#         return x
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        # x = self.SRCNN(x)
+        return x
 
 
 #VAE
-class Autoencoder(nn.Module):
+class VAEAutoencoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder = ResNetEncoder()

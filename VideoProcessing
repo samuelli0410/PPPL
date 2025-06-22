@@ -16,6 +16,8 @@ sav_files_dir = data_dir / "all"
 from data.file_utils import GetEmission
 from working_dir.ResNet.EncoderTrain import Autoencoder
 
+# from working_dir.MLP.MLP import MLP
+
 
 em = GetEmission(file_path=sav_files_dir)
 files = em.list_files(display=True)
@@ -39,10 +41,17 @@ def generate_Videos(modelWeights, model, FileNumber = 0):
         test_input = test_input / test_input.max()
         test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
         test_tensor = test_tensor.repeat(1, 3, 1, 1)
+
+
+
         with torch.no_grad():
             test_output = model(test_tensor.to(device))
             test_output = test_output.squeeze().cpu().numpy()
-        
+        # input_flat = test_tensor.view(1, -1)
+        # with torch.no_grad():
+        #     test_output = model(input_flat)
+        # test_output = test_output.view(201, 201).cpu().numpy()
+        # test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
 
         fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
@@ -68,13 +77,13 @@ def generate_Videos(modelWeights, model, FileNumber = 0):
 
         count +=1
 
-    with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/ResNet.mp4", fps=10) as writer:
+    with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/MLP.mp4", fps=10) as writer:
         for i in range(count):
             filename = f"frames/frame_{i:03d}.png"
             image = imageio.imread(filename)
             writer.append_data(image)
 
-    print("Video saved as ResNet.mp4")
+    print("Video saved as MLP.mp4")
 
     
 
@@ -83,9 +92,10 @@ def generate_Videos(modelWeights, model, FileNumber = 0):
 
 
 if __name__ == "__main__":
-    # generate_Videos("/scratch/gpfs/sl4318/resNet.pth",Autoencoder)
-    with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/ResNet.mp4", fps=10) as writer:
-        for i in range(171):
-            filename = f"frames/frame_{i:03d}.png"
-            image = imageio.imread(filename)
-            writer.append_data(image)
+    print("starting")
+    generate_Videos("/scratch/gpfs/sl4318/MLP.pth",MLP)
+    # with imageio.get_writer("/scratch/gpfs/sl4318/Outputs/ResNet.mp4", fps=10) as writer:
+    #     for i in range(171):
+    #         filename = f"frames/frame_{i:03d}.png"
+    #         image = imageio.imread(filename)
+    #         writer.append_data(image)

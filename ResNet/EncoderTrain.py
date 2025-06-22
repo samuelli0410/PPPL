@@ -338,54 +338,54 @@ if __name__ == "__main__":
     # print(project_root)
 
     ######################Training
-    # generator,errors,val_set = train_resNet()
-    # torch.save(generator.state_dict(), "ResNetSRCNN.pth")
-    # data_dir = Path(__file__).parent.parent
-    # output_file = data_dir/ "ResNetSRCNNerrors.csv"
-    # with open(output_file, "w", newline='') as f:
-    #     writer = csv.writer(f)
-    #     writer.writerows([[e] for e in errors])
-    # save_val_set(val_set)
-    # print("done")
+    generator,errors,val_set = train_resNet()
+    torch.save(generator.state_dict(), "ResNetSRCNN.pth")
+    data_dir = Path(__file__).parent.parent
+    output_file = data_dir/ "ResNetSRCNNerrors.csv"
+    with open(output_file, "w", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows([[e] for e in errors])
+    save_val_set(val_set)
+    print("done")
 
 
 
     ######################Validation
 
-    data = np.load("data.npz")
-    frames = data["X"]
-    inverted = data["y"]
+    # data = np.load("data.npz")
+    # frames = data["X"]
+    # inverted = data["y"]
 
-    test_input = frames[0]
-    ground_truth = inverted[0]
+    # test_input = frames[0]
+    # ground_truth = inverted[0]
 
-    test_input = test_input / test_input.max()
-    test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
-    test_tensor = test_tensor.repeat(1, 3, 1, 1)  # [1, 3, H, W] for ResNet-style models
-
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = Autoencoder().to(device)
-    project_root = Path(__file__).parent.parent
-    model.load_state_dict(torch.load(project_root / "ResNetSRCNN.pth", map_location=device))
-    model.eval()
+    # test_input = test_input / test_input.max()
+    # test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+    # test_tensor = test_tensor.repeat(1, 3, 1, 1)  # [1, 3, H, W] for ResNet-style models
 
 
-    with torch.no_grad():
-        test_output = model(test_tensor.to(device))
-        test_output = test_output.squeeze().cpu().numpy()
-    print("starting")
-    plt.imshow(ground_truth, cmap='inferno')
-    plt.colorbar()
-    plt.title("Ground Truth")
-    plt.savefig(project_root / "GroundTruthSRCNN.png", dpi=300, bbox_inches='tight')
-    plt.close()
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # model = Autoencoder().to(device)
+    # project_root = Path(__file__).parent.parent
+    # model.load_state_dict(torch.load(project_root / "ResNetSRCNN.pth", map_location=device))
+    # model.eval()
 
-    plt.imshow(test_output, cmap='inferno')
-    plt.colorbar()
-    plt.title("Model Output")
-    plt.savefig(project_root / "OutputSRCNN.png", dpi=300, bbox_inches='tight')
-    plt.close()
+
+    # with torch.no_grad():
+    #     test_output = model(test_tensor.to(device))
+    #     test_output = test_output.squeeze().cpu().numpy()
+    # print("starting")
+    # plt.imshow(ground_truth, cmap='inferno')
+    # plt.colorbar()
+    # plt.title("Ground Truth")
+    # plt.savefig(project_root / "GroundTruthSRCNN.png", dpi=300, bbox_inches='tight')
+    # plt.close()
+
+    # plt.imshow(test_output, cmap='inferno')
+    # plt.colorbar()
+    # plt.title("Model Output")
+    # plt.savefig(project_root / "OutputSRCNN.png", dpi=300, bbox_inches='tight')
+    # plt.close()
 
 
 

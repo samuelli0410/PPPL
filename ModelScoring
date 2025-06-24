@@ -198,7 +198,7 @@ def evalSSIMMLP(model, modelWeights, batch_size=1, percent=0.2, seed=42):
             test_output = model(input_flat)  # Should return [B, 1, 201, 201]
             test_output = test_output.view(-1,1,201, 201).cpu()
             test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
-            # print(test_output.shape)
+            print(test_output.shape)
             outputs = torch.clamp(test_output, 0.0, 1.0)
             if outputs.dim() == 3:
                 outputs = outputs.unsqueeze(1)
@@ -242,7 +242,7 @@ def evalSSIMGAN(model, modelWeights, batch_size=1, percent=0.2, seed=42):
             if targets.dim() == 3:
                 targets = targets.unsqueeze(1)
             outputs = outputs.repeat(1, 1, 1, 1)
-            # print(outputs.shape, targets.shape)
+            print(outputs.shape, targets.shape)
             score = edge_ssim(outputs, targets)
             total_SSIM_Loss += score 
             num_batches += 1
@@ -264,4 +264,200 @@ def evalSSIMGAN(model, modelWeights, batch_size=1, percent=0.2, seed=42):
 # evalSSIMMLP(MLP(), "/scratch/gpfs/sl4318/MLP.pth")
 # Average Total SSIM Score: 0.754644
 
-evalSSIMGAN(UNet(), "/scratch/gpfs/sl4318/GAN.pth")
+# evalSSIMGAN(UNet(), "/scratch/gpfs/sl4318/GAN.pth")
+# Average Total SSIM Score: 0.782881
+
+
+
+
+def evalMSE(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_MSE_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+            outputs = model(inputs)
+            outputs = torch.clamp(outputs, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            # score = edge_ssim(outputs, targets)
+            loss = nn.MSELoss()
+            score = loss(outputs, targets)
+            total_MSE_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_MSE_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+
+
+def evalMSEMLP(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_SSIM_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            test_input = inputs.to(device)
+            # print(targets.shape,test_input.shape)
+            test_input = test_input / test_input.max()
+            
+            # Expand channels and flatten
+            test_tensor = test_input  # [B, 3, 201, 201]
+            input_flat = test_tensor.view(test_tensor.size(0), -1) 
+
+            test_output = model(input_flat)  # Should return [B, 1, 201, 201]
+            test_output = test_output.view(-1,1,201, 201).cpu()
+            test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+            # print(test_output.shape)
+            outputs = torch.clamp(test_output, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            loss = nn.MSELoss()
+            score = loss(outputs, targets)
+            # score = edge_ssim(outputs, targets)
+            total_SSIM_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_SSIM_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+
+
+def evalMSEGAN(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_SSIM_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            test_input = inputs.to(device)
+            targets = targets.to(device)
+
+            test_tensor = test_input / test_input.max()
+            test_tensor = test_tensor.mean(dim=1, keepdim=True)
+            test_output = model(test_tensor)
+            test_output = test_output.view(201, 201).cpu()
+            outputs = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+
+            outputs = torch.clamp(outputs, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            outputs = outputs.repeat(1, 1, 1, 1)
+            loss = nn.MSELoss()
+            score = loss(outputs, targets)
+            total_SSIM_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_SSIM_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+
+
+# evalMSE(Autoencoder(),"/scratch/gpfs/sl4318/resNet.pth")
+# 0.000239
+
+
+# evalMSE(Autoencoder(),"/scratch/gpfs/sl4318/ResNetSRCNN.pth")
+# Average Total SSIM Score: 0.000191
+
+
+# evalMSE(VAEAutoencoder(),"/scratch/gpfs/sl4318/VAEresNet.pth")
+# Average Total SSIM Score: 0.001266
+
+# evalMSEMLP(MLP(), "/scratch/gpfs/sl4318/MLP.pth")
+# Average Total SSIM Score: 0.005949
+
+# evalMSEGAN(UNet(), "/scratch/gpfs/sl4318/GAN.pth")
+# 0.001257
+
+
+
+
+#HISTOGRAM MATCHING
+from skimage.exposure import match_histograms
+
+def compute_avg_ground_truth(dataset):
+    histograms = []
+    for _, gt in dataset:
+        gt_np = gt.squeeze().numpy()
+        hist, _ = np.histogram(gt_np, bins=256, range=(0, 1), density=True)
+        histograms.append(hist)
+    avg_hist = np.mean(histograms, axis=0)
+    return avg_hist
+
+
+
+def evalMSE(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    all_gt = [gt.squeeze().numpy() for _, gt in val_set]
+    stacked_gt = np.stack(all_gt, axis=0)
+    avg_target = np.mean(stacked_gt, axis=0)
+
+
+    outputs_matched=[]
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+            outputs = model(inputs).numpy()
+            outputs = np.clip(outputs, 0, 1)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            # score = edge_ssim(outputs, targets)
+            matched = match_histograms(outputs, avg_target, channel_axis=None)
+            outputs_matched.append(matched)
+    return outputs_matched
+
+dataset = FrameInvertedDataset()
+_, val_set = dataset.validation_split(percent=0.2, seed=42)
+test_loader = DataLoader(val_set, batch_size=1, shuffle=False)
+
+avg_hist = compute_avg_ground_truth(test_loader)
+bin_edges = np.linspace(0, 1, len(avg_hist) + 1)
+
+plt.figure(figsize=(8, 5))
+plt.bar(bin_edges[:-1], avg_hist, width=bin_edges[1] - bin_edges[0], color='blue', alpha=0.75, align='edge')
+plt.yscale('log')
+plt.title("Log-Scaled Average Histogram of Validation Set Ground Truths")
+plt.xlabel("Pixel Intensity")
+plt.ylabel("Density (log scale)")
+plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.savefig("log_avg_histogram_val_ground_truth.png", dpi=300)

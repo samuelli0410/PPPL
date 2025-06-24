@@ -1,0 +1,267 @@
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
+import sys
+from pathlib import Path
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import ast
+import torch
+import numpy as np
+from skimage.metrics import structural_similarity as ssim
+import cv2
+csv.field_size_limit(sys.maxsize)
+project_root = Path(__file__).parent.parent
+data_dir = project_root / "data"
+sys.path.append(str(project_root))
+sav_files_dir = data_dir / "all"
+from data.file_utils import GetEmission
+from working_dir.ResNet.EncoderTrain import Autoencoder, VAEAutoencoder,FrameInvertedDataset
+from working_dir.GAN.GAN import UNet
+from working_dir.MLP.MLP import MLP
+
+class TotalVariationLoss(nn.Module):
+    def __init__(self):
+        super(TotalVariationLoss, self).__init__()
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        h_tv = torch.pow(x[:, :, 1:, :] - x[:, :, :-1, :], 2).sum()
+        w_tv = torch.pow(x[:, :, :, 1:] - x[:, :, :, :-1], 2).sum()
+        return (h_tv + w_tv) / batch_size
+    
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+tv_loss_fn = TotalVariationLoss().to(device)
+
+
+def evalTVL(model,modelWeights, batch_size=16, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_tv_loss = 0.0
+    num_batches = 0
+
+    # Load dataset
+    dataset = FrameInvertedDataset()
+    train_set, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in test_loader:
+            # print(inputs.shape)
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+
+            outputs = torch.clamp(outputs, 0.0, 1.0)
+
+            tv_loss = tv_loss_fn(outputs)
+            total_tv_loss += tv_loss.item()
+            num_batches += 1
+
+    average_tv_loss = total_tv_loss / num_batches
+    print(f"Average Total Variation Loss: {average_tv_loss:.6f}")
+    return average_tv_loss
+
+
+def evalTVLMLP(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_tv_loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for test_input, _ in test_loader:
+            
+            test_input = test_input.to(device)
+            test_input = test_input / test_input.max()
+            
+            # Expand channels and flatten
+            test_tensor = test_input  # [B, 3, 201, 201]
+            input_flat = test_tensor.view(test_tensor.size(0), -1) 
+
+            test_output = model(input_flat)  # Should return [B, 1, 201, 201]
+            test_output = test_output.view(-1,1,201, 201).cpu()
+            test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+            # print(test_output.shape)
+            test_output = torch.clamp(test_output, 0.0, 1.0)
+
+            tv_loss = tv_loss_fn(test_output)
+            total_tv_loss += tv_loss.item()
+            num_batches += 1
+
+    average_tv_loss = total_tv_loss / num_batches
+    print(f"Average Total Variation Loss: {average_tv_loss:.6f}")
+    return average_tv_loss
+# evalTVL(Autoencoder(),"/scratch/gpfs/sl4318/ResNetSRCNN.pth")
+# Average Total Variation Loss: 12.449038
+
+# evalTVL(Autoencoder(),"/scratch/gpfs/sl4318/resNet.pth")
+# Average Total Variation Loss: 10.353834
+
+
+# evalTVL(VAEAutoencoder(),"/scratch/gpfs/sl4318/VAEresNet.pth")
+# Average Total Variation Loss: 4.763813
+
+
+# evalTVL(UNet(), "/scratch/gpfs/sl4318/GAN.pth")
+
+
+# evalTVLMLP(MLP(), "/scratch/gpfs/sl4318/MLP.pth")
+#17.936672
+
+
+def sobel_edges(img):
+    """
+    img: numpy array of shape (H, W), values in [0, 1]
+    returns: edge magnitude map (H, W)
+    """
+    img = (img * 255).astype(np.uint8)
+    dx = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=3)
+    dy = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=3)
+    edge = np.hypot(dx, dy)
+    edge = edge / edge.max() if edge.max() != 0 else edge
+    return edge
+
+def edge_ssim(output_tensor, target_tensor):
+    output_np = output_tensor.squeeze(1).cpu().numpy()
+    target_np = target_tensor.squeeze(1).cpu().numpy()
+
+    ssim_scores = []
+    for out_img, tgt_img in zip(output_np, target_np):
+        out_edge = sobel_edges(out_img)
+        tgt_edge = sobel_edges(tgt_img)
+        score = ssim(out_edge, tgt_edge, data_range=1.0)
+        ssim_scores.append(score)
+    return np.mean(ssim_scores)
+
+def evalSSIM(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_SSIM_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            inputs = inputs.to(device)
+            targets = targets.to(device)
+            outputs = model(inputs)
+            outputs = torch.clamp(outputs, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            score = edge_ssim(outputs, targets)
+            total_SSIM_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_SSIM_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+
+
+def evalSSIMMLP(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_SSIM_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            test_input = inputs.to(device)
+            # print(targets.shape,test_input.shape)
+            test_input = test_input / test_input.max()
+            
+            # Expand channels and flatten
+            test_tensor = test_input  # [B, 3, 201, 201]
+            input_flat = test_tensor.view(test_tensor.size(0), -1) 
+
+            test_output = model(input_flat)  # Should return [B, 1, 201, 201]
+            test_output = test_output.view(-1,1,201, 201).cpu()
+            test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+            # print(test_output.shape)
+            outputs = torch.clamp(test_output, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            
+            score = edge_ssim(outputs, targets)
+            total_SSIM_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_SSIM_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+
+
+def evalSSIMGAN(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+    model.to(device)
+    model.load_state_dict(torch.load(modelWeights, map_location=device))
+    model.eval()
+    total_SSIM_Loss = 0.0
+    num_batches = 0
+
+    dataset = FrameInvertedDataset()
+    _, val_set = dataset.validation_split(percent, seed)
+    test_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+
+    with torch.no_grad():
+        for inputs, targets in tqdm(test_loader):
+            test_input = inputs.to(device)
+            targets = targets.to(device)
+
+            test_tensor = test_input / test_input.max()
+            test_tensor = test_tensor.mean(dim=1, keepdim=True)
+            test_output = model(test_tensor)
+            test_output = test_output.view(201, 201).cpu()
+            outputs = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+
+            outputs = torch.clamp(outputs, 0.0, 1.0)
+            if outputs.dim() == 3:
+                outputs = outputs.unsqueeze(1)
+            if targets.dim() == 3:
+                targets = targets.unsqueeze(1)
+            outputs = outputs.repeat(1, 1, 1, 1)
+            # print(outputs.shape, targets.shape)
+            score = edge_ssim(outputs, targets)
+            total_SSIM_Loss += score 
+            num_batches += 1
+    AVG_SSIM_Loss = total_SSIM_Loss / num_batches
+    print(f"Average Total SSIM Score: {AVG_SSIM_Loss:.6f}")
+
+
+# evalSSIM(Autoencoder(),"/scratch/gpfs/sl4318/ResNetSRCNN.pth")
+# Average Total SSIM Score: 0.910221
+
+
+# evalSSIM(Autoencoder(),"/scratch/gpfs/sl4318/resNet.pth")
+#0.827616
+
+# evalSSIM(VAEAutoencoder(),"/scratch/gpfs/sl4318/VAEresNet.pth")
+# Average Total SSIM Score: 0.765905
+
+
+# evalSSIMMLP(MLP(), "/scratch/gpfs/sl4318/MLP.pth")
+# Average Total SSIM Score: 0.754644
+
+evalSSIMGAN(UNet(), "/scratch/gpfs/sl4318/GAN.pth")

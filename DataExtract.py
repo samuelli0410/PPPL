@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 import csv
 import numpy as np
+import matplotlib.pyplot as plt
 import ast
 csv.field_size_limit(sys.maxsize)
 project_root = Path(__file__).parent.parent
@@ -59,3 +60,9 @@ def load_csv_data(file_index):
 # print(len(framesInverted))                  # Number of frame pairs
 # print(framesInverted[0][0].shape)           # Shape of first `vid` frame
 # print(framesInverted[0][1].shape) 
+inverted, radii, elevation, frames, times, vid_frames, vid_times, vid = em.load_all(files[0])
+plt.imshow(vid[int(frames[0])], cmap='inferno')
+plt.colorbar()
+plt.title("Camera Image")
+plt.savefig(project_root / "CamImg.png", dpi=300, bbox_inches='tight')
+plt.close()

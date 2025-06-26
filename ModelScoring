@@ -415,7 +415,7 @@ def compute_avg_ground_truth(dataset):
 
 
 
-def evalMSE(model, modelWeights, batch_size=1, percent=0.2, seed=42):
+def HistCompare(model, modelWeights, i, batch_size=1, percent=0.2, seed=42):
     model.to(device)
     model.load_state_dict(torch.load(modelWeights, map_location=device))
     model.eval()
@@ -449,15 +449,21 @@ dataset = FrameInvertedDataset()
 _, val_set = dataset.validation_split(percent=0.2, seed=42)
 test_loader = DataLoader(val_set, batch_size=1, shuffle=False)
 
-avg_hist = compute_avg_ground_truth(test_loader)
-bin_edges = np.linspace(0, 1, len(avg_hist) + 1)
+# avg_hist = compute_avg_ground_truth(test_loader)
 
-plt.figure(figsize=(8, 5))
-plt.bar(bin_edges[:-1], avg_hist, width=bin_edges[1] - bin_edges[0], color='blue', alpha=0.75, align='edge')
-plt.yscale('log')
-plt.title("Log-Scaled Average Histogram of Validation Set Ground Truths")
-plt.xlabel("Pixel Intensity")
-plt.ylabel("Density (log scale)")
-plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)
-plt.tight_layout()
-plt.savefig("log_avg_histogram_val_ground_truth.png", dpi=300)
+
+
+
+
+# avg_hist = 
+# bin_edges = np.linspace(0, 1, len(avg_hist) + 1)
+
+# plt.figure(figsize=(8, 5))
+# plt.bar(bin_edges[:-1], avg_hist, width=bin_edges[1] - bin_edges[0], color='blue', alpha=0.75, align='edge')
+# plt.yscale('log')
+# plt.title("Log-Scaled Average Histogram of Validation Set Ground Truths")
+# plt.xlabel("Pixel Intensity")
+# plt.ylabel("Density (log scale)")
+# plt.grid(True, which='both', axis='y', linestyle='--', linewidth=0.5)
+# plt.tight_layout()
+# plt.savefig("log_avg_histogram_val_ground_truth.png", dpi=300)

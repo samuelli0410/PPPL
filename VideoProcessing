@@ -12,155 +12,112 @@ csv.field_size_limit(sys.maxsize)
 project_root = Path(__file__).parent.parent
 data_dir = project_root / "data"
 sys.path.append(str(project_root))
-sav_files_dir = data_dir / "all"
-from data.file_utils import GetEmission
-from working_dir.ResNet.EncoderTrain import Autoencoder
-from working_dir.ResNet.EncoderTrain import VAEAutoencoder
+sav_files_dir = data_dir / "TestData"
+from data.file_utils import GetPkl
+from working_dir.ResNet.EncoderTrain import Autoencoder, AutoencoderSRCNN,VAEAutoencoder
 from working_dir.GAN.GAN import UNet
 from working_dir.MLP.MLP import MLP
 
 
-em = GetEmission(file_path=sav_files_dir)
+em = GetPkl(file_path=sav_files_dir)
 files = em.list_files(display=True)
 
+test,_ = em.load_processed(files[0])
+# print(np.array(test).shape)
+# print(test.shape[0])
 
-def generate_Videos(modelWeights, name, model=Autoencoder, FileNumber = 0):
-    os.makedirs("frames", exist_ok=True)
-    inverted, radii, elevation, frames, times, vid_frames, vid_times, vid = em.load_all(files[FileNumber])
-    
+
+def InvertVid(modelWeights, name, model=Autoencoder, FileNumber = 0):
+    frames,_ = em.load_processed(files[FileNumber])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model=model().to(device)
     model.load_state_dict(torch.load(modelWeights, map_location=device))
     model.eval()
+
+    if name == "GAN":
+        for j in tqdm(range(frames.shape[0]), desc="Generating Frames"):
+            test_input =frames[j]
+            test_input = test_input / test_input.max()
+            test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            # test_tensor = test_tensor.repeat(1, 3, 1, 1)
+            with torch.no_grad():
+                test_output = model(test_tensor)
+            test_output = test_output.view(201, 201).cpu().numpy()
+            test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+
+            fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+            axs[0].imshow(test_input, cmap='inferno', aspect='auto')
+            axs[0].set_title(f"Cam Image {j}")
+            fig.colorbar(axs[0].images[0], ax=axs[0])
+            for i, img, title in zip([1], [test_output], [f"{name} Generated Inversion"]):
+                axs[i].imshow(img, cmap='inferno', aspect='equal')
+                axs[i].set_title(title)
+                fig.colorbar(axs[i].images[0], ax=axs[i])
+            fig.tight_layout()
+            plt.savefig(f"frames/frame_{j:03d}.png")
+            plt.close(fig)
+
+    elif name == "MLP":
+        for j in tqdm(range(frames.shape[0]), desc="Generating Frames"):
+            test_input = frames[j]
+            test_input = test_input / test_input.max()
+            test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            test_tensor = test_tensor.repeat(1, 3, 1, 1)
+            input_flat = test_tensor.view(1, -1)
+            with torch.no_grad():
+                test_output = model(input_flat)
+            test_output = test_output.view(201, 201).cpu().numpy()
+            test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
+            fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+            axs[0].imshow(test_input, cmap='inferno', aspect='auto')
+            axs[0].set_title(f"Cam Image {j}")
+            fig.colorbar(axs[0].images[0], ax=axs[0])
+            for i, img, title in zip([1], [test_output], [f"{name} Generated Inversion"]):
+                axs[i].imshow(img, cmap='inferno', aspect='equal')
+                axs[i].set_title(title)
+                fig.colorbar(axs[i].images[0], ax=axs[i])
+            fig.tight_layout()
+            plt.savefig(f"frames/frame_{j:03d}.png")
+            plt.close(fig)       
+    else:
+        for j in tqdm(range(frames.shape[0]), desc="Generating Frames"):
+            test_input =frames[j]
+            test_input = test_input / test_input.max()
+            test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            test_tensor = test_tensor.repeat(1, 3, 1, 1)
+            with torch.no_grad():
+                test_output = model(test_tensor.to(device))
+                test_output = test_output.squeeze().cpu().numpy()
+            fig, axs = plt.subplots(1, 2, figsize=(15, 5))
+            axs[0].imshow(test_input, cmap='inferno', aspect='auto')
+            axs[0].set_title(f"Cam Image {j}")
+            fig.colorbar(axs[0].images[0], ax=axs[0])
+            for i, img, title in zip([1], [test_output], [f"{name} Generated Inversion"]):
+                axs[i].imshow(img, cmap='inferno', aspect='equal')
+                axs[i].set_title(title)
+                fig.colorbar(axs[i].images[0], ax=axs[i])
+            fig.tight_layout()
+            plt.savefig(f"frames/frame_{j:03d}.png")
+            plt.close(fig)
     
-    count = 0
-    for j in tqdm(frames, desc="Generating Frames"):
-        j = int(j)
-        # framesInverted.append([vid[j].tolist(), inverted[count].tolist()])
-        test_input = vid[j]
-        ground_truth = inverted[count]
-        test_input = test_input / test_input.max()
-        test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        test_tensor = test_tensor.repeat(1, 3, 1, 1)
-
-
-
-        with torch.no_grad():
-            test_output = model(test_tensor.to(device))
-            test_output = test_output.squeeze().cpu().numpy()
-        # input_flat = test_tensor.view(1, -1)
-        # with torch.no_grad():
-        #     test_output = model(input_flat)
-        # test_output = test_output.view(201, 201).cpu().numpy()
-        # test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
-
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-
-        # Cam image with aspect ratio preserved
-        axs[0].imshow(test_input, cmap='inferno', aspect='auto')
-        axs[0].set_title(f"Cam Image {j}")
-        fig.colorbar(axs[0].images[0], ax=axs[0])
-
-        # Ground truth and output as square
-        for i, img, title in zip([1, 2], [ground_truth, test_output], ["Inverted", f"{name} Generated Inversion"]):
-            axs[i].imshow(img, cmap='inferno', aspect='equal')
-            axs[i].set_title(title)
-            fig.colorbar(axs[i].images[0], ax=axs[i])
-
-        fig.tight_layout()
-        plt.savefig(f"frames/frame_{count:03d}.png")
-        plt.close(fig)
-
-
-
-
-
-
-        count +=1
-
-    with imageio.get_writer(f"/scratch/gpfs/sl4318/Outputs/{name}.mp4", fps=10) as writer:
-        for i in range(count):
+    with imageio.get_writer(f"/scratch/gpfs/sl4318/Outputs/TestData{name}.mp4", fps=10) as writer:
+        for i in range(frames.shape[0]):
             filename = f"frames/frame_{i:03d}.png"
             image = imageio.imread(filename)
             writer.append_data(image)
-
     print(f"{name} Video saved")
 
 
 
 
-def generate_VideosMLP(modelWeights, name, model=Autoencoder, FileNumber = 0):
-    os.makedirs("frames", exist_ok=True)
-    inverted, radii, elevation, frames, times, vid_frames, vid_times, vid = em.load_all(files[FileNumber])
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model=model().to(device)
-    model.load_state_dict(torch.load(modelWeights, map_location=device))
-    model.eval()
-    
-    count = 0
-    for j in tqdm(frames, desc="Generating Frames"):
-        j = int(j)
-        # framesInverted.append([vid[j].tolist(), inverted[count].tolist()])
-        test_input = vid[j]
-        ground_truth = inverted[count]
-        test_input = test_input / test_input.max()
-        test_tensor = torch.tensor(test_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
-        test_tensor = test_tensor.repeat(1, 3, 1, 1)
-
-
-
-        # with torch.no_grad():
-        #     test_output = model(test_tensor.to(device))
-        #     test_output = test_output.squeeze().cpu().numpy()
-        input_flat = test_tensor.view(1, -1)
-        with torch.no_grad():
-            test_output = model(input_flat)
-        test_output = test_output.view(201, 201).cpu().numpy()
-        test_output = (test_output - test_output.min()) / (test_output.max() - test_output.min())
-
-        fig, axs = plt.subplots(1, 3, figsize=(15, 5))
-
-        # Cam image with aspect ratio preserved
-        axs[0].imshow(test_input, cmap='inferno', aspect='auto')
-        axs[0].set_title(f"Cam Image {j}")
-        fig.colorbar(axs[0].images[0], ax=axs[0])
-
-        # Ground truth and output as square
-        for i, img, title in zip([1, 2], [ground_truth, test_output], ["Inverted", f"{name} Generated Inversion"]):
-            axs[i].imshow(img, cmap='inferno', aspect='equal')
-            axs[i].set_title(title)
-            fig.colorbar(axs[i].images[0], ax=axs[i])
-
-        fig.tight_layout()
-        plt.savefig(f"frames/frame_{count:03d}.png")
-        plt.close(fig)
-
-
-
-
-
-
-        count +=1
-
-    with imageio.get_writer(f"/scratch/gpfs/sl4318/Outputs/{name}.mp4", fps=10) as writer:
-        for i in range(count):
-            filename = f"frames/frame_{i:03d}.png"
-            image = imageio.imread(filename)
-            writer.append_data(image)
-
-    print(f"{name} Video saved")
-
-    
-
-
-
-
-
 if __name__ == "__main__":
-    print("starting")
-    # generate_Videos("/scratch/gpfs/sl4318/VAEresNet.pth", "VAE", VAEAutoencoder)
-    generate_Videos("/scratch/gpfs/sl4318/resNet.pth", "ResNet", Autoencoder)
-    # generate_Videos("/scratch/gpfs/sl4318/GAN.pth", "GAN", UNet)
-    # generate_VideosMLP("/scratch/gpfs/sl4318/MLP.pth","MLP",MLP)
-    
+    print("Start")
+    # InvertVid("/scratch/gpfs/sl4318/Outputs/Weights/ResNetSRCNN.pth", "ResNetSRCNN", AutoencoderSRCNN)
+    # InvertVid("/scratch/gpfs/sl4318/Outputs/Weights/resNet.pth", "ResNet", Autoencoder)
+    # InvertVid("/scratch/gpfs/sl4318/Outputs/Weights/VAEresNet.pth", "VAE", VAEAutoencoder)
+
+    # InvertVid("/scratch/gpfs/sl4318/Outputs/Weights/MLP.pth", "MLP", MLP)
+    InvertVid("/scratch/gpfs/sl4318/Outputs/Weights/GAN.pth", "GAN", UNet)
+
+

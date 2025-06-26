@@ -66,6 +66,7 @@ class MLP(nn.Module):
         layers.append(nn.Linear(hidden_sizes[-1], output_size))
         self.network = nn.Sequential(*layers)
     def forward(self, x):
+        x = x.view(1, -1)
         return self.network(x)
     
 # input_size = 240 * 720*3

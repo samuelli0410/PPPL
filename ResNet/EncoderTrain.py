@@ -88,6 +88,19 @@ class Autoencoder(nn.Module):
         super().__init__()
         self.encoder = ResNetEncoder()
         self.decoder = Decoder(in_channels=2048)
+        
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
+    
+#ResnetSCRNN 
+class AutoencoderSRCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.encoder = ResNetEncoder()
+        self.decoder = Decoder(in_channels=2048)
         self.SRCNN = SRCNN()
         
 
